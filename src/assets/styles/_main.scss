@@ -1,0 +1,67 @@
+body {
+    background: #2366a0 !important;
+}
+/* Modules */
+@import './variables';
+@import './general';
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+/* Components */
+@import './components/animations';
+@import './components/header';
+
+/* Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Blinker:wght@300;400;600;700&display=swap');
+
+/* Pages */
+@import './pages/home';
+@import './pages/board';
+@import './pages/_board';
+
+* {
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+    font-family: 'Blinker', sans-serif;
+}
+
+html,
+body {
+    height: 100%;
+    font-size: 16px;
+    color: #fff;
+}
+
+/* Override: ensure inputs/textareas in light (white / slate) panels keep readable dark text */
+input, textarea, select {
+    color: #1f2937; /* slate-800 */
+}
+input::placeholder, textarea::placeholder {
+    color: #9ca3af; /* slate-400 */
+}
+/* When inside dark background we can force white if parent has .bg-[#2366a0] like board area */
+.bg-\[\#2366a0\] input,
+.bg-\[\#2366a0\] textarea,
+.bg-\[\#2366a0\] select {
+    color: #111827; /* near-black for contrast */
+}
+
+/* Force rendered comment text visibility */
+.comment-html, .comment-html * {
+    color: #334155 !important; /* slate-700 */
+}
+.comment-html a { color:#1d4ed8 !important; text-decoration:underline; }
+.comment-html strong { font-weight:600; }
+.comment-html p { margin:0 0 .5rem 0; }
+
+#app {
+    min-height: 100vh;
+    background-color: $light-blue1;
+}
+
+.view {
+    padding: 1rem 2rem;
+    height: auto;
+}
