@@ -1,5 +1,5 @@
 <template>
-  <div id="app">
+  <div id="app" class="app-background">
     <Header> </Header>
     <transition name="slide" mode="out-in">
       <router-view />

@@ -25,7 +25,9 @@
               <option value="completed">Terminé</option>
             </select>
           </label>
-          <button @click="closeModal" class="text-slate-400 hover:text-red-500 transition text-2xl leading-none"><i class="fas fa-times"></i></button>
+          <transition name="fade-btn">
+            <button v-if="isVisible" @click="closeModal" class="text-slate-400 hover:text-red-500 transition text-2xl leading-none"><i class="fas fa-times"></i></button>
+          </transition>
         </div>
       </div>
 
@@ -35,7 +37,9 @@
         <section class="space-y-4">
           <div class="flex items-center justify-between">
             <h3 class="text-lg font-semibold text-slate-800 flex items-center gap-2"><i class="fas fa-align-left text-indigo-500"></i>Description</h3>
-            <button v-if="!editingDescription" @click="startEditingDescription" class="border border-slate-300 rounded-lg px-4 py-2 text-sm text-indigo-600 hover:bg-indigo-600 hover:text-white transition"><i class="fas fa-edit mr-1"></i>Modifier</button>
+            <transition name="fade-btn">
+              <button v-if="!editingDescription && isVisible" @click="startEditingDescription" class="border border-slate-300 rounded-lg px-4 py-2 text-sm text-indigo-600 hover:bg-indigo-600 hover:text-white transition"><i class="fas fa-edit mr-1"></i>Modifier</button>
+            </transition>
           </div>
           <div v-if="!editingDescription">
             <div v-if="task && task.content && task.content.rendered" v-html="task.content.rendered" class="bg-white border border-indigo-100 border-l-4 border-l-indigo-400 rounded-lg p-5 leading-relaxed text-sm text-slate-700 shadow-sm"></div>
@@ -44,8 +48,12 @@
           <div v-else class="space-y-3">
             <textarea v-model="editedDescription" rows="4" ref="descriptionTextarea" placeholder="Décrivez cette tâche..." class="w-full border-2 rounded-lg p-4 text-sm leading-relaxed focus:outline-none focus:border-indigo-500 resize-y min-h-[120px]"></textarea>
             <div class="flex gap-3">
-              <button @click="saveDescription" class="inline-flex items-center gap-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white px-5 py-2 text-sm font-medium shadow-sm"><i class="fas fa-save"></i>Sauvegarder</button>
-              <button @click="cancelDescriptionEdit" class="inline-flex items-center gap-2 rounded-lg bg-slate-300 hover:bg-slate-400 text-slate-800 px-5 py-2 text-sm font-medium"><i class="fas fa-times"></i>Annuler</button>
+              <transition name="fade-btn">
+                <button v-if="isVisible" @click="saveDescription" class="inline-flex items-center gap-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white px-5 py-2 text-sm font-medium shadow-sm transition"><i class="fas fa-save"></i>Sauvegarder</button>
+              </transition>
+              <transition name="fade-btn">
+                <button v-if="isVisible" @click="cancelDescriptionEdit" class="inline-flex items-center gap-2 rounded-lg bg-slate-300 hover:bg-slate-400 text-slate-800 px-5 py-2 text-sm font-medium transition"><i class="fas fa-times"></i>Annuler</button>
+              </transition>
             </div>
           </div>
         </section>
@@ -57,7 +65,9 @@
             <div class="space-y-2">
               <textarea v-model="newComment" rows="3" @keydown.ctrl.enter="addComment" placeholder="Écrire un commentaire..." class="w-full border-2 border-slate-300 rounded-lg p-4 text-sm leading-relaxed focus:outline-none focus:border-indigo-500 resize-y"></textarea>
               <div class="flex items-center justify-between">
-                <button @click="addComment" :disabled="!newComment.trim() || !task" class="inline-flex items-center gap-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 text-sm font-medium shadow-sm"><i class="fas fa-paper-plane"></i>Envoyer</button>
+                <transition name="fade-btn">
+                  <button v-if="isVisible" @click="addComment" :disabled="!newComment.trim() || !task" class="inline-flex items-center gap-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 text-sm font-medium shadow-sm transition"><i class="fas fa-paper-plane"></i>Envoyer</button>
+                </transition>
                 <small class="text-slate-400 text-xs">Ctrl + Entrée pour envoyer</small>
               </div>
             </div>
@@ -70,8 +80,12 @@
                     <div class="flex items-center gap-2 text-slate-700 font-medium"><i class="fas fa-user-circle text-indigo-500 text-lg"></i>{{ comment.author_name || 'Utilisateur' }}</div>
                     <div class="text-xs text-slate-400">{{ formatDate(comment.date) }}</div>
                     <div class="flex gap-1">
-                      <button v-if="!comment.isEditing" @click="startEditingComment(comment)" title="Modifier" class="p-2 text-indigo-500 hover:bg-indigo-50 rounded transition"><i class="fas fa-edit"></i></button>
-                      <button @click="deleteComment(comment.id)" title="Supprimer" class="p-2 text-red-500 hover:bg-red-50 rounded transition"><i class="fas fa-trash"></i></button>
+                      <transition name="fade-btn">
+                        <button v-if="!comment.isEditing && isVisible" @click="startEditingComment(comment)" title="Modifier" class="p-2 text-indigo-500 hover:bg-indigo-50 rounded transition"><i class="fas fa-edit"></i></button>
+                      </transition>
+                      <transition name="fade-btn">
+                        <button v-if="isVisible" @click="deleteComment(comment.id)" title="Supprimer" class="p-2 text-red-500 hover:bg-red-50 rounded transition"><i class="fas fa-trash"></i></button>
+                      </transition>
                     </div>
                   </div>
                   <div v-if="!comment.isEditing" v-html="comment.content.rendered" class="bg-white border border-slate-200 rounded-md p-3 text-sm leading-relaxed"></div>
@@ -212,6 +226,18 @@ export default {
 </script>
 
 <style scoped>
+/* Animation d'apparition des boutons modale */
+.fade-btn-enter-active, .fade-btn-leave-active {
+  transition: opacity 0.2s, transform 0.2s;
+}
+.fade-btn-enter-from, .fade-btn-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+.fade-btn-enter-to, .fade-btn-leave-from {
+  opacity: 1;
+  transform: scale(1);
+}
 @keyframes scaleIn { 0% { transform: scale(.9); opacity:0 } 100% { transform: scale(1); opacity:1 } }
 .animate-scaleIn { animation: scaleIn .25s ease-out }
 </style>
