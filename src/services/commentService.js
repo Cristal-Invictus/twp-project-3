@@ -1,18 +1,16 @@
 import axios from 'axios';
+import { useAuthStore } from '../store/authStore.js';
 
 const BASE_URL = 'http://localhost:10003/wp-json/wp/v2';
-const USERNAME = 'Cristal';
-const PASSWORD = '54l4UuuGhBnG6GY3tIVqhUdU';
-const AUTH = btoa(`${USERNAME}:${PASSWORD}`);
 
-const client = axios.create({
-  baseURL: BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-    Authorization: `Basic ${AUTH}`,
-  },
-});
+function authHeaders(){
+  try { const authStore = useAuthStore(); if(authStore?.token) return { Authorization:`Bearer ${authStore.token}` }; } catch(e){}
+  return {}; // no fallback basic
+}
+
+function client(){
+  return axios.create({ baseURL: BASE_URL, headers:{ 'Content-Type':'application/json', Accept:'application/json', ...authHeaders() }});
+}
 
 function handleError(error) {
   let message = 'Erreur inconnue';
@@ -46,16 +44,16 @@ function handleError(error) {
 export default {
   async getAll(postId) {
     try {
-      const response = await client.get(`/comments?post=${postId}&per_page=100`);
+  const response = await client().get(`/comments?post=${postId}&per_page=100&orderby=date&order=asc&_fields=id,post,content,date,parent,author_name,author,author_email`);
       return { success: true, data: response.data };
     } catch (error) {
       console.error('Erreur getAll:', error);
       return { success: false, error: handleError(error) };
     }
   },
-  async create({ post, content, author_name, author_email }) {
+  async create({ post, content, author_name, author_email, parent }) {
     try {
-      const response = await client.post('/comments', { post, content, author_name, author_email });
+      const response = await client().post('/comments', { post, content, author_name, author_email, parent });
       return { success: true, data: response.data };
     } catch (error) {
       console.error('Erreur create:', error);
@@ -64,7 +62,7 @@ export default {
   },
   async update(id, { content }) {
     try {
-      const response = await client.put(`/comments/${id}`, { content });
+  const response = await client().put(`/comments/${id}`, { content });
       return { success: true, data: response.data };
     } catch (error) {
       console.error('Erreur update:', error);
@@ -73,7 +71,7 @@ export default {
   },
   async delete(id) {
     try {
-      const response = await client.delete(`/comments/${id}`);
+  const response = await client().delete(`/comments/${id}`);
       return { success: true, data: response.data };
     } catch (error) {
       console.error('Erreur delete:', error);

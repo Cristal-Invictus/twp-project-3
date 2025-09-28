@@ -15,11 +15,26 @@
         />
       </div>
     </div>
+    <div class="flex items-center gap-4">
+      <router-link to="/" class="hover:underline text-sm">Board</router-link>
+  <router-link v-if="!auth.isAuthenticated" to="/login" class="hover:underline text-sm">Login</router-link>
+  <router-link v-if="!auth.isAuthenticated" to="/register" class="hover:underline text-sm">Register</router-link>
+      <div v-else class="flex items-center gap-3 text-sm">
+        <span class="inline-flex items-center gap-1 bg-white/15 px-2 py-1 rounded"> <i class="fas fa-user"></i> {{ auth.username }} </span>
+        <button @click="logout" class="bg-white/20 hover:bg-white/30 px-3 py-1 rounded">Logout</button>
+      </div>
+    </div>
   </header>
 </template>
 
 <script>
+import { useAuthStore } from '../store/authStore.js';
 export default {
+  setup(){
+    const auth = useAuthStore();
+    const logout = ()=> auth.logout();
+    return { auth, logout };
+  },
   data() {
     return {
       search: '',

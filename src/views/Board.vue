@@ -3,12 +3,18 @@
     <h1 class="page-title">Vos tableaux</h1>
 
     <main class="main-container">
-      <div class="boards-wrapper">
-        <div
-          class="board-column"
-          v-for="(board, index) in filteredBoards"
-          :key="board.id || index"
-        >
+      <draggable
+        class="boards-wrapper"
+        :list="draggableCategoryList"
+        item-key="id"
+        direction="horizontal"
+        ghost-class="board-ghost"
+        drag-class="board-dragging"
+        :disabled="isFiltered"
+        @change="onBoardsChange"
+      >
+        <template #item="{ element: board }">
+        <div class="board-column">
           <div class="board-header">
             <h3 class="board-title">{{ board.title }}</h3>
             <div class="board-actions">
@@ -24,45 +30,57 @@
             </div>
           </div>
 
-          <div class="tasks-container">
-            <div
-              class="task-card"
-              v-for="(task, taskIndex) in board.tasks"
-              :key="task.id || taskIndex"
-              @click="openTaskDetails(task, board)"
-            >
-              <h4 class="task-title">{{ task.title && task.title.rendered ? task.title.rendered : (task.title || task.text) }}</h4>
-              <div class="task-actions">
-                <button @click.stop="deleteTask(board.name, taskIndex)" class="btn btn-small btn-delete">
-                  <i class="fas fa-trash"></i>
-                </button>
-                <button @click.stop="editTask(board.name, taskIndex)" class="btn btn-small btn-success">
-                  <i class="fas fa-edit"></i>
-                </button>
+          <draggable
+            class="tasks-container"
+            :list="board.tasks"
+            group="tasks"
+            item-key="id"
+            ghost-class="drag-ghost"
+            drag-class="dragging"
+            @change="onTasksChange($event, board)"
+          >
+            <template #item="{ element: task, index: taskIndex }">
+              <div class="task-card" @click="openTaskDetails(task, board)">
+                <h4 class="task-title" :title="fullTitle(task)">{{ truncateTitle(task) }}</h4>
+                <div class="task-actions">
+                  <button @click.stop="deleteTask(board.name, taskIndex)" class="btn btn-small btn-delete">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                  <button @click.stop="editTask(board.name, taskIndex)" class="btn btn-small btn-success">
+                    <i class="fas fa-edit"></i>
+                  </button>
+                </div>
               </div>
-            </div>
+            </template>
+          </draggable>
+  </div>
+  </template>
+  <template #footer>
+  <div class="add-category-column">
+          <div v-if="!showAddCategoryForm" class="add-category-placeholder" @click="toggleAddCategory()">
+            <i class="fas fa-plus"></i> Ajouter une liste
           </div>
-        </div>
-
-        <div class="add-category-column">
-          <form @submit.prevent="handleInlineAddCategory" class="add-category-form">
-            <input 
-              v-model="newCategoryName" 
-              type="text" 
-              placeholder="Nouvelle catégorie" 
-              class="category-input" 
-              maxlength="32" 
+          <form v-else @submit.prevent="handleInlineAddCategory" class="add-category-form">
+            <input
+              v-model="newCategoryName"
+              type="text"
+              placeholder="Titre de la liste"
+              class="category-input"
+              maxlength="32"
+              autofocus
             />
-            <button 
-              type="submit" 
-              class="btn btn-add btn-small"
-              :disabled="!newCategoryName.trim()"
-            >
-              <i class="fas fa-plus"></i>
-            </button>
+            <div class="add-actions">
+              <button
+                type="submit"
+                class="btn btn-add btn-small"
+                :disabled="!newCategoryName.trim()"
+              >Créer</button>
+              <button type="button" class="btn btn-delete btn-small" @click="cancelAddCategory">X</button>
+            </div>
           </form>
         </div>
-      </div>
+        </template>
+      </draggable>
     </main>
 
     <CardDetails
@@ -140,6 +158,11 @@ export default {
       }))
     );
 
+  const displayedBoards = computed(() => filteredBoards.value);
+  const isFiltered = computed(()=> !!props.searchQuery && props.searchQuery.trim().length>0);
+  // Si filtré, on ne doit pas altérer l'ordre global -> utiliser une copie; sinon utiliser le tableau réactif de base
+  const draggableCategoryList = computed(()=> isFiltered.value ? displayedBoards.value.slice() : categories.value);
+
     const filteredBoards = computed(() => {
       if (!props.searchQuery || !props.searchQuery.trim()) return boards.value;
       const query = props.searchQuery.trim().toLowerCase();
@@ -148,7 +171,10 @@ export default {
 
     // Remove local search state and handler
 
-    const newCategoryName = ref("");
+  const newCategoryName = ref("");
+  const showAddCategoryForm = ref(false);
+  const toggleAddCategory = () => { showAddCategoryForm.value = true; }; 
+  const cancelAddCategory = () => { showAddCategoryForm.value = false; newCategoryName.value=''; };
     const addCategoryError = ref("");
     const handleInlineAddCategory = async () => {
       addCategoryError.value = "";
@@ -161,9 +187,14 @@ export default {
         addCategoryError.value = "32 caractères max.";
         return;
       }
-      await categoryStore.addCategory({ name });
+      const result = await categoryStore.addCategory({ name });
+      if (result === false) {
+        Swal.fire('Erreur', "Création catégorie échouée", 'error');
+        return;
+      }
       await categoryStore.loadCategories();
-      newCategoryName.value = "";
+  newCategoryName.value = "";
+  showAddCategoryForm.value = false;
     };
 
     const editCategory = async categoryId => {
@@ -372,73 +403,113 @@ export default {
       }
     };
 
-    const dragSourceLane = ref(null);
-
-    const handleDragStart = lane => {
-      dragSourceLane.value = lane;
-    };
-
-    const handleDrop = async (lane, dropResult) => {
-      if (!dropResult || (dropResult.removedIndex == null && dropResult.addedIndex == null)) return;
-      const sourceCategory = boards.value.find(board => board.name === dragSourceLane.value);
-      const targetCategory = boards.value.find(board => board.name === lane);
-      if (!sourceCategory || !targetCategory) return;
-      
-      let movedTask = null;
-      if (dropResult.removedIndex != null) {
-        movedTask = sourceCategory.tasks.splice(dropResult.removedIndex, 1)[0];
-      }
-      
-      if (dropResult.addedIndex != null && movedTask) {
-
-        
-        targetCategory.tasks.splice(dropResult.addedIndex, 0, movedTask);
-        
+    // Persistance drag & drop via événement change (added/moved)
+    const persistPositions = async (board) => {
+      // Pour limiter les requêtes, on ne met à jour que les 10 premiers changements (optimisation simple)
+      const tasksToPersist = board.tasks.slice(0, board.tasks.length);
+      // Sauvegarde ordre local (fallback) par catégorie
+      try {
+        const key = `postOrder_cat_${board.id}`;
+        const ids = board.tasks.map(t=>t.id);
+        localStorage.setItem(key, JSON.stringify(ids));
+      } catch(e) { /* ignore */ }
+      for (let i = 0; i < tasksToPersist.length; i++) {
+        const t = tasksToPersist[i];
+        if (!t?.id) continue;
         try {
-          console.log('[DEBUG] Drag & Drop:', {
-  postId: movedTask.id,
-  newCategoryId: targetCategory.id,
-  payload: { categories: [targetCategory.id] },
-  movedTask,
-  targetCategory
-});
-const updateResult = await postService.update(movedTask.id, {
-  categories: [targetCategory.id]
-});
-console.log('[DEBUG] Réponse API WordPress:', updateResult);
-          
-          if (updateResult.success) {
-            console.log('Sauvegarde WordPress reussie, deplacement persiste!');
-          } else {
-            console.error('Erreur WordPress, rechargement des categories');
+          await postService.update(t.id, { categories: [board.id], meta: { position: i } });
+        } catch (e) {
+          console.warn('[DnD] Échec update position pour post', t.id, e);
+        }
+      }
+    };
+    const onTasksChange = async (evt, targetBoard) => {
+      // Déplacement inter-colonnes
+      if (evt?.added) {
+        const task = evt.added.element;
+        if (!task?.id) return;
+        try {
+          const updateResult = await postService.update(task.id, { categories: [targetBoard.id], meta: { position: evt.added.newIndex } });
+          if (!updateResult.success) {
+            console.error('[DnD] Échec update WP -> rollback', updateResult.error);
             await categoryStore.loadCategories();
+            return;
           }
-        } catch (error) {
-          console.error('Erreur de sauvegarde:', error);
+          console.log('[DnD] Post', task.id, 'assigné à catégorie', targetBoard.id, 'position', evt.added.newIndex);
+          // Reindexer catégorie cible
+          await persistPositions(targetBoard);
+          // Reindexer aussi catégorie source (evt.from / evt.clone non direct => on recharge ou on retrouve via ID)
+          try {
+            if (evt?.removed && evt.removed.element && evt.removed.element.categories) {
+              const previousCatId = evt.removed.element.categories.find(cid=>cid!==targetBoard.id);
+              const previous = categories.value.find(c=>c.id===previousCatId);
+              if (previous) await persistPositions(previous);
+            }
+          } catch(e) { /* ignore */ }
+        } catch (e) {
+          console.error('[DnD] Erreur réseau update', e);
           await categoryStore.loadCategories();
         }
-      } else if (movedTask) {
-        sourceCategory.tasks.splice(dropResult.removedIndex, 0, movedTask);
+      } else if (evt?.moved) {
+        // Réorganisation interne dans la même colonne
+        try {
+          await persistPositions(targetBoard);
+        } catch (e) {
+          console.error('[DnD] Erreur persist positions', e);
+        }
       }
-      
-      dragSourceLane.value = null;
     };
 
-    const getChildPayload = index => {
-      return { index };
+    const persistCategoryPositions = async () => {
+      // utiliser l'ordre actuel dans categories.value
+      const currentIds = categories.value.map(c=>c.id);
+      localStorage.setItem('categoryOrder', JSON.stringify(currentIds));
+      for (let i = 0; i < categories.value.length; i++) {
+        const cat = categories.value[i];
+        const existingPos = cat.meta?.position;
+        if (existingPos === i) continue; // éviter requête inutile
+        try {
+          await categoryStore.updateCategory({
+            id: cat.id,
+            name: cat.name || cat.title,
+            slug: cat.slug,
+            description: cat.description,
+            meta: { position: i }
+          });
+        } catch (e) {
+          console.warn('[Boards] échec maj position catégorie', cat.id, e);
+        }
+      }
+    };
+
+    const onBoardsChange = async (evt) => {
+      if (evt?.moved || evt?.added) {
+  // Mettre à jour ordre local dans le store
+  const newOrderIds = categories.value.map(c=>c.id);
+  categoryStore.setCategoryOrder(newOrderIds);
+  await persistCategoryPositions();
+      }
     };
 
     return {
       boards,
       filteredBoards,
-      editCategory,
+      displayedBoards,
+  draggableCategoryList,
+  isFiltered,
+  truncateTitle: (task) => {
+        const raw = task?.title?.rendered || task?.title || task?.text || '';
+        const plain = typeof raw === 'string' ? raw : String(raw);
+        const max = 30; // longueur maximale affichée
+        return plain.length > max ? plain.substring(0, max - 1) + '…' : plain;
+      },
+      fullTitle: (task) => task?.title?.rendered || task?.title || task?.text || '',
+  editCategory,
       deleteCategory,
       addTask,
       editTask,
       deleteTask,
-      getChildPayload,
-      handleDragStart,
-      handleDrop,
+  onTasksChange,
       showTaskModal,
       selectedTask,
       selectedCategory,
@@ -448,6 +519,10 @@ console.log('[DEBUG] Réponse API WordPress:', updateResult);
       addCategoryError,
       handleInlineAddCategory,
       backgroundStyle,
+  onBoardsChange,
+  showAddCategoryForm,
+  toggleAddCategory,
+  cancelAddCategory,
     };
    
   },
@@ -504,30 +579,40 @@ console.log('[DEBUG] Réponse API WordPress:', updateResult);
 
 /* Container principal des boards */
 .main-container {
+  /* Horizontal scroll container for all columns */
   overflow-x: auto;
-  padding: 0 16px 64px;
+  overflow-y: hidden;
+  padding: 0 16px 32px;
+  /* Keep the scrollbar always available to hint horizontal scroll */
+  white-space: nowrap;
 }
 
 .boards-wrapper {
   display: flex;
   gap: 24px;
-  min-width: 0;
-  flex-wrap: wrap;
   align-items: flex-start;
+  /* Force a single horizontal row */
+  flex-wrap: nowrap;
+  /* Allow width to grow with number of columns */
+  width: max-content;
+  min-height: calc(100vh - 180px); /* viewport minus header/title spacing */
+  padding-bottom: 8px;
 }
 
 .board-column {
-  min-width: 280px;
-  width: 100%;
-  max-width: 400px;
+  flex: 0 0 300px; /* fixed width like Trello lists */
+  max-width: 300px;
   background: rgba(30, 58, 138, 0.9);
   border: 1px solid rgba(59, 130, 246, 0.5);
   border-radius: 12px;
   padding: 16px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
   backdrop-filter: blur(8px);
-  flex-shrink: 0;
+  height: fit-content;
 }
+
+.board-ghost { opacity: 0.4; }
+.board-dragging { transform: rotate(2deg); }
 
 .board-header {
   display: flex;
@@ -557,7 +642,11 @@ console.log('[DEBUG] Réponse API WordPress:', updateResult);
   display: flex;
   flex-direction: column;
   gap: 12px;
-  min-height: 100px;
+  min-height: 40px;
+  /* Vertical scroll for tasks inside a fixed-height column */
+  max-height: calc(100vh - 260px);
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .task-card {
@@ -584,6 +673,12 @@ console.log('[DEBUG] Réponse API WordPress:', updateResult);
   font-weight: 500;
   word-break: break-words;
   line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2; /* maximum 2 lignes si le texte est quand même plus long */
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .task-actions {
@@ -594,8 +689,8 @@ console.log('[DEBUG] Réponse API WordPress:', updateResult);
 
 .add-category-column {
   min-width: 250px;
-  width: max-content;
-  max-width: 350px;
+  width: 300px;
+  max-width: 300px;
   background: rgba(30, 58, 138, 0.6);
   border: 1px solid rgba(59, 130, 246, 0.5);
   border-radius: 8px;
@@ -607,19 +702,19 @@ console.log('[DEBUG] Réponse API WordPress:', updateResult);
 
 .add-category-form {
   display: flex;
-  align-items: center;
-  gap: 4px;
+  flex-direction: column;
+  gap: 6px;
   width: 100%;
 }
 
 .category-input {
-  flex: 1;
-  padding: 4px 8px;
+  width: 100%;
+  padding: 10px 10px;
   border: 1px solid rgba(59, 130, 246, 0.5);
   border-radius: 6px;
   background: rgba(30, 58, 138, 1);
   color: white;
-  font-size: 0.75rem;
+  font-size: 0.85rem;
   outline: none;
   transition: all 0.2s ease;
 }
@@ -632,6 +727,27 @@ console.log('[DEBUG] Réponse API WordPress:', updateResult);
 .category-input::placeholder {
   color: rgba(147, 197, 253, 0.7);
 }
+
+.add-category-placeholder {
+  padding: 10px 12px;
+  font-size: 0.8rem;
+  color: #bfdbfe;
+  background: rgba(30,58,138,0.4);
+  border: 1px dashed rgba(59,130,246,0.5);
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background .2s ease, border-color .2s ease;
+}
+.add-category-placeholder:hover {
+  background: rgba(30,58,138,0.6);
+  border-color: rgba(59,130,246,0.8);
+}
+
+.add-actions { display:flex; gap:8px; }
+.add-actions .btn { border-radius:6px; width:auto; padding:0 12px; height:30px; font-size:0.75rem; }
 
 .btn {
   border: none;
@@ -737,89 +853,13 @@ console.log('[DEBUG] Réponse API WordPress:', updateResult);
 }
 
 @media (max-width: 768px) {
-  .page-container {
-    padding: 8px 2px;
-  }
-
-  .page-title {
-    font-size: 1.25rem;
-    margin-bottom: 12px;
-    text-align: center;
-  }
-
-  .main-container {
-    padding: 0 2px 32px;
-    overflow-x: auto;
-  }
-
-  .boards-wrapper {
-    flex-direction: column;
-    gap: 12px;
-    align-items: stretch;
-  }
-
-  .board-column {
-    min-width: 90vw;
-    max-width: 98vw;
-    width: 100%;
-    margin: 0 auto;
-    padding: 8px;
-  }
-
-  .board-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .board-title {
-    font-size: 1rem;
-    margin-right: 0;
-    margin-bottom: 4px;
-    text-align: left;
-  }
-
-  .board-actions {
-    gap: 4px;
-  }
-
-  .tasks-container {
-    gap: 8px;
-    min-height: 60px;
-  }
-
-  .task-card {
-    padding: 8px;
-    font-size: 0.95rem;
-  }
-
-  .task-title {
-    font-size: 0.95rem;
-  }
-
-  .add-category-column {
-    min-width: 80vw;
-    max-width: 95vw;
-    padding: 4px;
-    margin: 0 auto;
-  }
-
-  .add-category-form {
-    flex-direction: column;
-    gap: 4px;
-    align-items: stretch;
-  }
-
-  .category-input {
-    font-size: 0.85rem;
-    padding: 4px 6px;
-  }
-
-  .btn, .btn-small {
-    width: 28px;
-    height: 28px;
-    font-size: 0.8rem;
-  }
+  .page-container { padding: 8px 4px; }
+  .page-title { font-size: 1.25rem; margin-bottom: 12px; }
+  .main-container { padding: 0 4px 24px; }
+  /* Keep horizontal scrolling also on mobile like Trello */
+  .board-column { flex: 0 0 260px; max-width:260px; padding:12px; }
+  .tasks-container { max-height: calc(100vh - 240px); }
+  .task-card { padding:8px; }
 }
 @media (max-width: 480px) {
   .page-title {

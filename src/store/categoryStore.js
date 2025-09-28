@@ -5,6 +5,7 @@ import postService from '../services/postService.js';
 export const useCategoryStore = defineStore('categoryStore', {
   state: () => ({
     categories: [],
+  categoryOrder: [],
   }),
   actions: {
     async loadCategories() {
@@ -19,9 +20,30 @@ export const useCategoryStore = defineStore('categoryStore', {
         
         if (tasksResponse.success) {
           const categoriesWithTasks = response.data.map(cat => {
-            const tasks = tasksResponse.data.filter(post => 
+            let tasks = tasksResponse.data.filter(post => 
               post.categories && post.categories.includes(cat.id)
             );
+            // Fallback ordre localStorage si meta absente
+            const hasAnyMeta = tasks.some(t=>typeof t.meta?.position !== 'undefined');
+            if (hasAnyMeta) {
+              tasks = tasks.sort((a,b) => {
+                const pa = a.meta?.position ?? 999999;
+                const pb = b.meta?.position ?? 999999;
+                return pa - pb;
+              });
+            } else {
+              try {
+                const key = `postOrder_cat_${cat.id}`;
+                const stored = localStorage.getItem(key);
+                if (stored) {
+                  const order = JSON.parse(stored);
+                  const map = new Map(tasks.map(t=>[t.id,t]));
+                  const ordered = order.map(id=>map.get(id)).filter(Boolean);
+                  const missing = tasks.filter(t=>!order.includes(t.id));
+                  tasks = [...ordered, ...missing];
+                }
+              } catch(e) { /* ignore */ }
+            }
             console.log(`🏪 Store: Catégorie "${cat.name}" (ID: ${cat.id}) a ${tasks.length} posts`);
             
             return {
@@ -31,7 +53,36 @@ export const useCategoryStore = defineStore('categoryStore', {
             };
           });
           
-          this.categories = categoriesWithTasks;
+          // Charger ordre sauvegardé localement si meta absente ou incomplète
+          const storedOrderJSON = localStorage.getItem('categoryOrder');
+          let storedOrder = [];
+          if (storedOrderJSON) {
+            try { storedOrder = JSON.parse(storedOrderJSON); } catch(e) { /* ignore */ }
+          }
+
+          const hasAnyMeta = categoriesWithTasks.some(c=>c.meta && typeof c.meta.position !== 'undefined');
+          let ordered;
+          if (hasAnyMeta) {
+            ordered = categoriesWithTasks.sort((a,b)=>{
+              const pa = a.meta?.position ?? 999999;
+              const pb = b.meta?.position ?? 999999;
+              if (pa === pb) return a.id - b.id;
+              return pa - pb;
+            });
+          } else if (storedOrder.length) {
+            const map = new Map(categoriesWithTasks.map(c=>[c.id,c]));
+            ordered = storedOrder.map(id=>map.get(id)).filter(Boolean);
+            // Ajouter celles non présentes dans storedOrder (nouvelles)
+            categoriesWithTasks.forEach(c=>{ if(!map.has(c.id)) map.set(c.id,c); });
+            const missing = categoriesWithTasks.filter(c=>!storedOrder.includes(c.id));
+            ordered = [...ordered, ...missing];
+          } else {
+            ordered = categoriesWithTasks; // fallback natural order
+          }
+          this.categories = ordered;
+          // Mettre à jour ordre local fallback et sauvegarder
+          this.categoryOrder = this.categories.map(c=>c.id);
+          localStorage.setItem('categoryOrder', JSON.stringify(this.categoryOrder));
           console.log('🏪 Store: Catégories chargées avec succès:', this.categories.length);
         } else {
           console.error('🏪 Store: Erreur lors du chargement des posts:', tasksResponse.error);
@@ -56,6 +107,7 @@ export const useCategoryStore = defineStore('categoryStore', {
           tasks: [],
         });
       }
+      return response.success ? response : false;
     },
     async updateCategory(category) {
       console.log(`🏪 Store: Tentative de mise à jour catégorie:`, category);
@@ -71,7 +123,13 @@ export const useCategoryStore = defineStore('categoryStore', {
         
         if (idx !== -1) {
           const oldCategory = this.categories[idx];
-          this.categories[idx] = response.data;
+          // Préserver tasks et fusionner meta
+          this.categories[idx] = {
+            ...oldCategory,
+            ...response.data,
+            tasks: oldCategory.tasks || [],
+            meta: { ...(oldCategory.meta||{}), ...(response.data.meta||{}) }
+          };
           console.log(`🏪 Store: Catégorie mise à jour - Ancien:`, oldCategory);
           console.log(`🏪 Store: Catégorie mise à jour - Nouveau:`, response.data);
         } else {
@@ -102,6 +160,13 @@ export const useCategoryStore = defineStore('categoryStore', {
       
       return response;
     },
+    setCategoryOrder(newOrderIds) {
+      this.categoryOrder = [...newOrderIds];
+      // Reordonner localement selon la liste fournie
+      const map = new Map(this.categories.map(c=>[c.id,c]));
+      this.categories = newOrderIds.map(id=>map.get(id)).filter(Boolean);
+  localStorage.setItem('categoryOrder', JSON.stringify(this.categoryOrder));
+    }
   },
   persist: true,
 });

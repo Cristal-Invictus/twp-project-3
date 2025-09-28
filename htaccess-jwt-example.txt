@@ -1,0 +1,50 @@
+# === .htaccess EXEMPLE AVEC JWT & CORS ===
+# Copiez TOUT ce fichier dans votre .htaccess WordPress en remplaçant le contenu existant.
+# Adaptez l'origine (Access-Control-Allow-Origin) à l'URL de votre front (ici: http://localhost:8080)
+# Si vous utilisez HTTPS ou un autre domaine (ex: https://crist.local), remplacez-le aussi ici.
+
+# --- Préserver l'en-tête Authorization pour JWT ---
+<IfModule mod_rewrite.c>
+RewriteEngine On
+# Conserver l'en-tête Authorization (indispensable pour JWT)
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+# Bloc WordPress standard
+RewriteBase /
+RewriteRule ^index\.php$ - [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.php [L]
+</IfModule>
+
+# --- CORS & Méthodes (développement) ---
+<IfModule mod_headers.c>
+  Header always set Access-Control-Allow-Origin "http://localhost:8080"
+  Header always set Access-Control-Allow-Headers "Authorization, Content-Type, Accept, Origin"
+  Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, PATCH, DELETE"
+  Header always set Access-Control-Allow-Credentials "true"
+</IfModule>
+
+# --- Support supplémentaire pour certains environnements ---
+SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+
+# (Optionnel) Désactiver l'indexage des répertoires
+Options -Indexes
+
+# (Optionnel) Sécurité basique
+<FilesMatch "(?i)(wp-config\.php|xmlrpc\.php)">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Deny from all
+  </IfModule>
+</FilesMatch>
+
+# --- Notes ---
+# 1. Après modification, allez dans Réglages > Permaliens et cliquez sur "Enregistrer" pour rafraîchir les règles.
+# 2. Si vous utilisez LocalWP et passez à Nginx, ce fichier sera ignoré (utiliser alors la conf Nginx).
+# 3. Pour la production, restreindre Access-Control-Allow-Origin à votre domaine final et réduire les méthodes si besoin.
+# 4. Assurez-vous que JWT_AUTH_SECRET_KEY est défini dans wp-config.php.
+# 5. Tester le token:
+# curl -X POST http://votre-site.local/wp-json/jwt-auth/v1/token -H 'Content-Type: application/json' -d '{"username":"admin","password":"motdepasse"}'

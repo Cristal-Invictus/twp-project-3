@@ -1,1 +1,17 @@
 node_modules
+# Build artifacts
+/dist
+# Logs
+npm-debug.log*
+yarn-error.log*
+# Local env
+.env
+.env.local
+# Mac files
+.DS_Store
+# Editor
+.vscode/
+.idea/
+# Coverage
+coverage/
+

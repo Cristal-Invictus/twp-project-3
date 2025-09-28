@@ -1,18 +1,16 @@
 import axios from 'axios';
+import { useAuthStore } from '../store/authStore.js';
 
 const BASE_URL = 'http://localhost:10003/wp-json/wp/v2';
-const USERNAME = 'Cristal';
-const PASSWORD = '54l4UuuGhBnG6GY3tIVqhUdU';
-const AUTH = btoa(`${USERNAME}:${PASSWORD}`);
 
-const client = axios.create({
-  baseURL: BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-    Authorization: `Basic ${AUTH}`,
-  },
-});
+function authHeaders(){
+  try { const authStore = useAuthStore(); if(authStore?.token) return { Authorization:`Bearer ${authStore.token}` }; } catch(e){}
+  return {}; // no fallback basic anymore
+}
+
+function client(){
+  return axios.create({ baseURL: BASE_URL, headers:{ 'Content-Type':'application/json', Accept:'application/json', ...authHeaders() }});
+}
 
 function handleError(error) {
   let message = 'Erreur inconnue';
@@ -46,7 +44,9 @@ function handleError(error) {
 export default {
   async getAll() {
     try {
-      const response = await client.get('/posts?per_page=100');
+  // context=edit nécessite authentification et expose meta.
+  // _fields pour limiter la taille de réponse tout en gardant l'essentiel.
+  const response = await client().get('/posts?per_page=100&context=edit&_fields=id,title,content,excerpt,categories,meta,author');
       return { success: true, data: response.data };
     } catch (error) {
       console.error('Erreur getAll:', error);
@@ -55,7 +55,7 @@ export default {
   },
   async create({ title, content, excerpt, categories, status, meta }) {
     try {
-      const response = await client.post('/posts', { title, content, excerpt, categories, status, meta });
+  const response = await client().post('/posts', { title, content, excerpt, categories, status, meta });
       return { success: true, data: response.data };
     } catch (error) {
       console.error('Erreur create:', error);
@@ -64,7 +64,7 @@ export default {
   },
   async update(id, { title, content, excerpt, categories, status, meta }) {
     try {
-      const response = await client.put(`/posts/${id}`, { title, content, excerpt, categories, status, meta });
+  const response = await client().put(`/posts/${id}`, { title, content, excerpt, categories, status, meta });
       return { success: true, data: response.data };
     } catch (error) {
       console.error('Erreur update:', error);
@@ -73,7 +73,7 @@ export default {
   },
   async delete(id) {
     try {
-      const response = await client.delete(`/posts/${id}`);
+  const response = await client().delete(`/posts/${id}`);
       return { success: true, data: response.data };
     } catch (error) {
       console.error('Erreur delete:', error);
