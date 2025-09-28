@@ -33,7 +33,7 @@
               <option value="completed">Terminé</option>
             </select>
           </label>
-          <button @click="closeModal" class="text-slate-400 hover:text-red-500 transition text-2xl leading-none"><i class="fas fa-times"></i></button>
+          <button @click="closeModal" class="text-slate-400 hover:text-red-500 transition-opacity transition-transform duration-200 opacity-0 scale-95 text-2xl leading-none" v-show="isVisible"><i class="fas fa-times"></i></button>
         </div>
       </div>
 
@@ -46,7 +46,8 @@
             <button
               v-if="!editingDescription"
               @click="startEditingDescription"
-              class="border border-slate-300 rounded-lg px-4 py-2 text-sm text-indigo-600 hover:bg-indigo-600 hover:text-white transition"
+              class="border border-slate-300 rounded-lg px-4 py-2 text-sm text-indigo-600 hover:bg-indigo-600 hover:text-white transition-opacity transition-transform duration-200 opacity-0 scale-95"
+              v-show="isVisible"
             ><i class="fas fa-edit mr-1"></i>Modifier</button>
           </div>
           <div v-if="!editingDescription">
@@ -70,8 +71,8 @@
               class="w-full border-2 rounded-lg p-4 text-sm leading-relaxed focus:outline-none focus:border-indigo-500 resize-y min-h-[120px]"
             ></textarea>
             <div class="flex gap-3">
-              <button @click="saveDescription" class="inline-flex items-center gap-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white px-5 py-2 text-sm font-medium shadow-sm"><i class="fas fa-save"></i>Sauvegarder</button>
-              <button @click="cancelDescriptionEdit" class="inline-flex items-center gap-2 rounded-lg bg-slate-300 hover:bg-slate-400 text-slate-800 px-5 py-2 text-sm font-medium"><i class="fas fa-times"></i>Annuler</button>
+              <button @click="saveDescription" class="inline-flex items-center gap-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white px-5 py-2 text-sm font-medium shadow-sm transition-opacity transition-transform duration-200 opacity-0 scale-95" v-show="isVisible"><i class="fas fa-save"></i>Sauvegarder</button>
+              <button @click="cancelDescriptionEdit" class="inline-flex items-center gap-2 rounded-lg bg-slate-300 hover:bg-slate-400 text-slate-800 px-5 py-2 text-sm font-medium transition-opacity transition-transform duration-200 opacity-0 scale-95" v-show="isVisible"><i class="fas fa-times"></i>Annuler</button>
             </div>
           </div>
         </section>
@@ -89,11 +90,9 @@
                 class="w-full border-2 border-slate-300 rounded-lg p-4 text-sm leading-relaxed focus:outline-none focus:border-indigo-500 resize-y bg-white text-slate-800 placeholder-slate-400"
               ></textarea>
               <div class="flex items-center justify-between">
-                <button
-                  @click="addComment"
-                  :disabled="!newComment.trim() || !task"
-                  class="inline-flex items-center gap-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 text-sm font-medium shadow-sm"
-                ><i class="fas fa-paper-plane"></i>Envoyer</button>
+                <transition name="fade-btn">
+                  <button v-if="task" @click="addComment" :disabled="!newComment.trim() || !task" class="inline-flex items-center gap-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 text-sm font-medium shadow-sm"><i class="fas fa-paper-plane"></i>Envoyer</button>
+                </transition>
                 <small class="text-slate-400 text-xs">Ctrl + Entrée pour envoyer</small>
               </div>
             </div>
@@ -272,7 +271,22 @@ export default {
     formatDate(d){ const date=new Date(d); return date.toLocaleDateString('fr-FR',{ day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'}); }
   }
 };
+
 </script>
+
+<style scoped>
+.fade-btn-enter-active, .fade-btn-leave-active {
+  transition: opacity 0.2s, transform 0.2s;
+}
+.fade-btn-enter-from, .fade-btn-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+.fade-btn-enter-to, .fade-btn-leave-from {
+  opacity: 1;
+  transform: scale(1);
+}
+</style>
 <style scoped>
 @keyframes scaleIn { 0% { transform: scale(.9); opacity:0 } 100% { transform: scale(1); opacity:1 } }
 .animate-scaleIn { animation: scaleIn .25s ease-out }

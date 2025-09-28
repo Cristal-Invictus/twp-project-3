@@ -261,22 +261,16 @@
             </div>
 
             <div class="flex justify-end gap-3 pt-5 border-t border-gray-200">
-              <button
-                type="button"
-                class="inline-flex items-center gap-2 px-4 py-2 rounded bg-gray-600 text-white text-sm font-medium hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400"
-                @click="closeModals"
-              >
-                Annuler
-              </button>
-              <button
-                type="submit"
-                class="inline-flex items-center gap-2 px-4 py-2 rounded bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
-                :disabled="!postForm.title || !postForm.categoryId || submitting"
-              >
-                <i class="fas fa-spinner animate-spin" v-if="submitting"></i>
-                <i class="fas fa-save" v-else></i>
-                {{ submitting ? 'Enregistrement...' : 'Enregistrer' }}
-              </button>
+              <transition name="fade-btn">
+                <button v-if="showCreateModal || showEditModal" type="button" class="inline-flex items-center gap-2 px-4 py-2 rounded bg-gray-600 text-white text-sm font-medium hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400" @click="closeModals">Annuler</button>
+              </transition>
+              <transition name="fade-btn">
+                <button v-if="showCreateModal || showEditModal" type="submit" class="inline-flex items-center gap-2 px-4 py-2 rounded bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60" :disabled="!postForm.title || !postForm.categoryId || submitting">
+                  <i class="fas fa-spinner animate-spin" v-if="submitting"></i>
+                  <i class="fas fa-save" v-else></i>
+                  {{ submitting ? 'Enregistrement...' : 'Enregistrer' }}
+                </button>
+              </transition>
             </div>
         </form>
       </div>
@@ -587,5 +581,20 @@ export default {
     },
   },
 };
+
 </script>
+
+<style scoped>
+.fade-btn-enter-active, .fade-btn-leave-active {
+  transition: opacity 0.2s, transform 0.2s;
+}
+.fade-btn-enter-from, .fade-btn-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+.fade-btn-enter-to, .fade-btn-leave-from {
+  opacity: 1;
+  transform: scale(1);
+}
+</style>
 

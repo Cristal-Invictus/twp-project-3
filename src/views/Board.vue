@@ -1,30 +1,31 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-board-gradientFrom via-board-gradientVia to-board-gradientTo py-8 px-4">
-    <h1 class="text-4xl font-bold text-center text-white mb-8 tracking-wide uppercase drop-shadow">Vos tableaux</h1>
+  <div class="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 py-8 px-4">
+  <h1 class="text-4xl font-bold text-center text-white mb-8 tracking-wide uppercase drop-shadow-lg">Vos tableaux</h1>
 
-  <main class="flex overflow-x-auto gap-6 px-4 pb-16" style="scrollbar-width:thin; --board-col-width:320px;">
-      <div
-        class="rounded-xl shadow-column p-4 w-80 min-w-[320px] flex flex-col gap-4 bg-column-bg/95 border border-column-border backdrop-blur-sm"
-        v-for="(board, index) in boards"
-        :key="index"
-      >
+  <main class="flex overflow-x-auto gap-6 px-4 pb-16 scrollbar-thin scrollbar-thumb-blue-900 scrollbar-track-blue-700">
+  <transition-group name="fade-board" tag="div" class="flex gap-6">
+          <div
+            class="rounded-xl shadow-lg p-4 w-80 min-w-[320px] flex flex-col gap-4 bg-blue-950/90 border border-blue-800 backdrop-blur-sm"
+            v-for="(board, index) in boards"
+            :key="board.id || index"
+          >
         <div class="flex items-center justify-between mb-2">
           <h3 class="text-lg font-semibold text-white">{{ board.title }}</h3>
           <div class="flex gap-2">
-            <button @click="addTask(board.name)" class="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2 transition shadow">
+            <button @click="addTask(board.name)" class="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2 transition duration-200 ease-in-out shadow-lg active:scale-95">
               <i class="fas fa-plus"></i>
             </button>
-            <button @click="deleteCategory(board.id)" class="bg-red-600 hover:bg-red-700 text-white rounded-full p-2 transition shadow">
+            <button @click="deleteCategory(board.id)" class="bg-red-600 hover:bg-red-700 text-white rounded-full p-2 transition duration-200 ease-in-out shadow-lg active:scale-95">
               <i class="fas fa-trash"></i>
             </button>
-            <button @click="editCategory(board.id)" class="bg-yellow-500 hover:bg-yellow-600 text-white rounded-full p-2 transition shadow">
+            <button @click="editCategory(board.id)" class="bg-yellow-500 hover:bg-yellow-600 text-white rounded-full p-2 transition duration-200 ease-in-out shadow-lg active:scale-95">
               <i class="fas fa-edit"></i>
             </button>
           </div>
         </div>
 
         <draggable
-          class="drag-container min-h-[120px]"
+          class="min-h-[120px]"
           :list="board.tasks"
           group="trello"
           itemKey="id"
@@ -32,29 +33,33 @@
           @end="handleDrop(board.name, $event)"
         >
           <template #item="{ element: task, index }">
-            <div
-              class="task rounded-lg shadow-card p-3 mb-3 flex flex-col gap-2 cursor-pointer bg-card-bg hover:bg-card-hover transition border border-card-border"
-              @click="openTaskDetails(task, board)"
-            >
-              <h3 class="text-base font-medium text-white">{{ task.title && task.title.rendered ? task.title.rendered : (task.title || task.text) }}</h3>
-              <div class="flex gap-2 mt-2">
-                <button @click.stop="deleteTask(board.name, index)" class="bg-red-500 hover:bg-red-600 text-white rounded-full p-2 transition shadow">
-                  <i class="fas fa-trash"></i>
-                </button>
-                <button @click.stop="editTask(board.name, index)" class="bg-green-500 hover:bg-green-600 text-white rounded-full p-2 transition shadow">
-                  <i class="fas fa-edit"></i>
-                </button>
-              </div>
+            <transition name="fade-task" mode="out-in">
+              <div
+                class="rounded-lg shadow-md p-3 mb-3 flex flex-col gap-2 cursor-pointer bg-blue-900/80 hover:bg-blue-800/90 transition duration-200 border border-blue-800"
+                @click="openTaskDetails(task, board)"
+                :key="task.id || index"
+              >
+                <h3 class="text-base font-medium text-white">{{ task.title && task.title.rendered ? task.title.rendered : (task.title || task.text) }}</h3>
+                <div class="flex gap-2 mt-2">
+                  <button @click.stop="deleteTask(board.name, index)" class="bg-red-500 hover:bg-red-600 text-white rounded-full p-2 transition duration-200 ease-in-out shadow active:scale-95">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                  <button @click.stop="editTask(board.name, index)" class="bg-green-500 hover:bg-green-600 text-white rounded-full p-2 transition duration-200 ease-in-out shadow active:scale-95">
+                    <i class="fas fa-edit"></i>
+                  </button>
+                </div>
             </div>
+            </transition>
           </template>
         </draggable>
       </div>
+      </transition-group>
 
     <!-- Colonne spéciale ultra-compacte (une seule ligne) -->
-  <div class="self-start bg-column-bg/60 backdrop-blur-sm rounded-lg shadow-column px-2 py-2 w-[var(--add-col-width)] min-w-[var(--add-col-width)] border border-column-border flex items-center" style="--add-col-width:200px;">
+  <div class="self-start bg-blue-950/60 backdrop-blur-sm rounded-lg shadow-lg px-2 py-2 w-[200px] min-w-[200px] border border-blue-800 flex items-center">
         <form @submit.prevent="handleInlineAddCategory" class="flex items-center w-full gap-1">
-          <input v-model="newCategoryName" type="text" placeholder="Nouvelle catégorie" class="flex-1 px-2 py-1 rounded-md border border-column-border focus:outline-none focus:ring-2 focus:ring-accent-blue/70 text-[11px] bg-card-bg text-white placeholder:text-accent-blue/70" maxlength="32" />
-          <button type="submit" class="bg-accent-blue hover:bg-accent-blue/80 text-white rounded-md h-7 w-7 flex items-center justify-center text-[11px] transition" :disabled="!newCategoryName.trim()" :class="{'opacity-50 cursor-not-allowed': !newCategoryName.trim()}">
+          <input v-model="newCategoryName" type="text" placeholder="Nouvelle catégorie" class="flex-1 px-2 py-1 rounded-md border border-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-700 text-xs bg-blue-900 text-white placeholder:text-blue-400" maxlength="32" />
+          <button type="submit" class="bg-blue-700 hover:bg-blue-800 text-white rounded-md h-7 w-7 flex items-center justify-center text-xs transition duration-200 ease-in-out" :disabled="!newCategoryName.trim()" :class="{'opacity-50 cursor-not-allowed': !newCategoryName.trim()}">
             <i class="fas fa-plus"></i>
           </button>
         </form>
@@ -490,3 +495,27 @@ console.log('[DEBUG] Réponse API WordPress:', updateResult);
   background-color: #27ae60;
 }
 </style>
+/* Transitions douces pour colonnes et cartes */
+.fade-board-enter-active, .fade-board-leave-active {
+  transition: all 0.4s cubic-bezier(.4,0,.2,1);
+}
+.fade-board-enter-from, .fade-board-leave-to {
+  opacity: 0;
+  transform: translateY(30px) scale(0.95);
+}
+.fade-board-leave-from, .fade-board-enter-to {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.fade-task-enter-active, .fade-task-leave-active {
+  transition: all 0.35s cubic-bezier(.4,0,.2,1);
+}
+.fade-task-enter-from, .fade-task-leave-to {
+  opacity: 0;
+  transform: translateY(20px) scale(0.97);
+}
+.fade-task-leave-from, .fade-task-enter-to {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}

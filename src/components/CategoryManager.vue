@@ -81,12 +81,16 @@
             <textarea id="categoryDescription" v-model="categoryForm.description" rows="3" maxlength="200" placeholder="Description de cette colonne" class="w-full rounded-lg border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 text-sm resize-y"></textarea>
           </div>
           <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
-            <button type="button" @click="closeModals" class="inline-flex items-center gap-2 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 text-sm font-medium">Annuler</button>
-            <button type="button" @click="submitCategory" :disabled="!categoryForm.title || submitting" class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-2 text-sm font-medium shadow-sm">
-              <i class="fas fa-spinner fa-spin" v-if="submitting"></i>
-              <i class="fas fa-save" v-else></i>
-              {{ submitting ? 'Enregistrement...' : 'Enregistrer' }}
-            </button>
+            <transition name="fade-btn">
+              <button v-if="showCreateModal || showEditModal" type="button" @click="closeModals" class="inline-flex items-center gap-2 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 text-sm font-medium">Annuler</button>
+            </transition>
+            <transition name="fade-btn">
+              <button v-if="showCreateModal || showEditModal" type="button" @click="submitCategory" :disabled="!categoryForm.title || submitting" class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-2 text-sm font-medium shadow-sm">
+                <i class="fas fa-spinner fa-spin" v-if="submitting"></i>
+                <i class="fas fa-save" v-else></i>
+                {{ submitting ? 'Enregistrement...' : 'Enregistrer' }}
+              </button>
+            </transition>
           </div>
         </form>
       </div>
@@ -282,6 +286,18 @@ export default {
 </script>
 
 <style scoped>
+/* Animation d'apparition des boutons modale */
+.fade-btn-enter-active, .fade-btn-leave-active {
+  transition: opacity 0.2s, transform 0.2s;
+}
+.fade-btn-enter-from, .fade-btn-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+.fade-btn-enter-to, .fade-btn-leave-from {
+  opacity: 1;
+  transform: scale(1);
+}
 /* Minimal keyframe (FontAwesome already supplies spinner but keep as fallback) */
 @keyframes fa-spin { 0% { transform: rotate(0deg);} 100% { transform: rotate(360deg);} }
 </style>
